@@ -24,6 +24,7 @@ import java.util.List;
 
 /**
  * @author Clinton Begin
+ * 结果处理
  */
 public interface ResultSetHandler {
 

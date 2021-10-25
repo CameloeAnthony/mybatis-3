@@ -1,5 +1,5 @@
 /**
- *    Copyright 2009-2015 the original author or authors.
+ *    Copyright 2009-2021 the original author or authors.
  *
  *    Licensed under the Apache License, Version 2.0 (the "License");
  *    you may not use this file except in compliance with the License.
@@ -34,6 +34,7 @@ import org.apache.ibatis.io.Resources;
 /**
  * @author Clinton Begin
  * @author Eduardo Macarron
+ * 数据源的实现会每次请求时打开和关闭连接
  */
 public class UnpooledDataSource implements DataSource {
   

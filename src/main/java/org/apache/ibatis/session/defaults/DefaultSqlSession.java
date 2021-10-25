@@ -1,5 +1,5 @@
 /**
- *    Copyright 2009-2017 the original author or authors.
+ *    Copyright 2009-2021 the original author or authors.
  *
  *    Licensed under the Apache License, Version 2.0 (the "License");
  *    you may not use this file except in compliance with the License.
@@ -43,7 +43,7 @@ import org.apache.ibatis.session.SqlSession;
  *
  * The default implementation for {@link SqlSession}.
  * Note that this class is not Thread-Safe.
- *
+ * SqlSession默认实现，调用MappedStatement和Executor转发sql请求
  * @author Clinton Begin
  */
 public class DefaultSqlSession implements SqlSession {
@@ -289,6 +289,7 @@ public class DefaultSqlSession implements SqlSession {
 
   @Override
   public <T> T getMapper(Class<T> type) {
+    //Configuration中保存了mapperRegistry，通过mapperRegistry调用MapperProxyFactory创建Mapper的动态代理
     return configuration.<T>getMapper(type, this);
   }
 
