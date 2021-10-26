@@ -23,6 +23,7 @@ import org.apache.ibatis.cache.CacheException;
 
 /**
  * @author Clinton Begin
+ * MyBatis一级缓存内部设计简单，只是一个没有容量限定的HashMap
  */
 public class PerpetualCache implements Cache {
 

@@ -37,6 +37,7 @@ import java.util.concurrent.locks.ReadWriteLock;
  * </pre>
  *
  * @author Clinton Begin
+ * 子类主要通过装饰器模式实现，比如LruCache
  */
 
 public interface Cache {
