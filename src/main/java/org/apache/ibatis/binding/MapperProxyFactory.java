@@ -24,6 +24,7 @@ import org.apache.ibatis.session.SqlSession;
 
 /**
  * @author Lasse Voss
+ * 用于生成MapperProxy实例
  */
 public class MapperProxyFactory<T> {
 

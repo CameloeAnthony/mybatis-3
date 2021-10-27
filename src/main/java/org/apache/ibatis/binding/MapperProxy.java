@@ -30,6 +30,7 @@ import org.apache.ibatis.session.SqlSession;
 /**
  * @author Clinton Begin
  * @author Eduardo Macarron
+ * 动态代理类，实现了InvocationHandler接口，用于为接口生成动态代理实例，实例就是MapperProxy类型的。
  */
 public class MapperProxy<T> implements InvocationHandler, Serializable {
 
