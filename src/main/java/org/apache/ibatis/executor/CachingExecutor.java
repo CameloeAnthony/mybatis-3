@@ -35,6 +35,7 @@ import org.apache.ibatis.transaction.Transaction;
 /**
  * @author Clinton Begin
  * @author Eduardo Macarron
+ * 装饰器模式封装Executor
  */
 public class CachingExecutor implements Executor {
 
@@ -79,6 +80,7 @@ public class CachingExecutor implements Executor {
   @Override
   public <E> List<E> query(MappedStatement ms, Object parameterObject, RowBounds rowBounds, ResultHandler resultHandler) throws SQLException {
     BoundSql boundSql = ms.getBoundSql(parameterObject);
+    //二级缓存的实现
     CacheKey key = createCacheKey(ms, parameterObject, rowBounds, boundSql);
     return query(ms, parameterObject, rowBounds, resultHandler, key, boundSql);
   }
@@ -89,23 +91,32 @@ public class CachingExecutor implements Executor {
     return delegate.queryCursor(ms, parameter, rowBounds);
   }
 
+  //行真正的查询操作之前会访问二级缓存，如果命中就直接返回了，因此二级缓存优先级比一级缓存高。
+  // 一级缓存实在Executor的query里面实现，而二级是一个包装了Executor的类来做的，它会在调用Executor的query之前去尝试获取缓存数据。
   @Override
   public <E> List<E> query(MappedStatement ms, Object parameterObject, RowBounds rowBounds, ResultHandler resultHandler, CacheKey key, BoundSql boundSql)
       throws SQLException {
+    //1 尝试读取缓存，缓存为空则直接走最后的BaseExecutor.query
     Cache cache = ms.getCache();
     if (cache != null) {
+      //2 如果需要就清除缓存
       flushCacheIfRequired(ms);
+      //3 如果配置允许使用缓存，才访问缓存
       if (ms.isUseCache() && resultHandler == null) {
         ensureNoOutParams(ms, boundSql);
         @SuppressWarnings("unchecked")
+        //4 从二级缓存获取数据
         List<E> list = (List<E>) tcm.getObject(cache, key);
         if (list == null) {
+          // 5 二级缓存为空，才会调用BaseExecutor.query
           list = delegate.<E> query(ms, parameterObject, rowBounds, resultHandler, key, boundSql);
+          //6 查询到数据则放入缓存
           tcm.putObject(cache, key, list); // issue #578 and #116
         }
         return list;
       }
     }
+    //缓存为空则直接走最后的BaseExecutor.query
     return delegate.<E> query(ms, parameterObject, rowBounds, resultHandler, key, boundSql);
   }
 

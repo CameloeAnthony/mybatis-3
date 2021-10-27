@@ -55,6 +55,7 @@ public abstract class BaseExecutor implements Executor {
   protected Executor wrapper;
 
   protected ConcurrentLinkedQueue<DeferredLoad> deferredLoads;
+  //PerpetualCache 一级缓存
   protected PerpetualCache localCache;
   protected PerpetualCache localOutputParameterCache;
   protected Configuration configuration;
@@ -140,30 +141,37 @@ public abstract class BaseExecutor implements Executor {
   @Override
   public <E> List<E> query(MappedStatement ms, Object parameter, RowBounds rowBounds, ResultHandler resultHandler, CacheKey key, BoundSql boundSql) throws SQLException {
     ErrorContext.instance().resource(ms.getResource()).activity("executing a query").object(ms.getId());
+    //检查当前executor是否关闭
     if (closed) {
       throw new ExecutorException("Executor was closed.");
     }
+    //非嵌套查询，并且flushcache配置为true，则需要清空一级缓存
     if (queryStack == 0 && ms.isFlushCacheRequired()) {
       clearLocalCache();
     }
     List<E> list;
     try {
+      //查询层次加一
       queryStack++;
       list = resultHandler == null ? (List<E>) localCache.getObject(key) : null;
       if (list != null) {
+        //调用存储过程的处理
         handleLocallyCachedOutputParameters(ms, key, parameter, boundSql);
       } else {
+        //缓存未命中，从数据库加载数据，如果加载到数据，会保存到一级缓存
         list = queryFromDatabase(ms, parameter, rowBounds, resultHandler, key, boundSql);
       }
     } finally {
       queryStack--;
     }
     if (queryStack == 0) {
+      //延迟加载处理
       for (DeferredLoad deferredLoad : deferredLoads) {
         deferredLoad.load();
       }
       // issue #601
       deferredLoads.clear();
+      //如果当前的sql的一级缓存配置为STATEMENT,查询完则清空一级缓存
       if (configuration.getLocalCacheScope() == LocalCacheScope.STATEMENT) {
         // issue #482
         clearLocalCache();
@@ -319,14 +327,20 @@ public abstract class BaseExecutor implements Executor {
 
   private <E> List<E> queryFromDatabase(MappedStatement ms, Object parameter, RowBounds rowBounds, ResultHandler resultHandler, CacheKey key, BoundSql boundSql) throws SQLException {
     List<E> list;
+    //1 到一级缓存占一个位置
     localCache.putObject(key, EXECUTION_PLACEHOLDER);
     try {
+      //2 查询数据库，查询数据库并返回数据，可选实现包含：simple，reuse，batch。模板方法！！！
       list = doQuery(ms, parameter, rowBounds, resultHandler, boundSql);
     } finally {
+      //3 在缓存中删除占位符
       localCache.removeObject(key);
     }
+    //4 将查询结果放入一级缓存
     localCache.putObject(key, list);
+    //5 如果是调用存储过程
     if (ms.getStatementType() == StatementType.CALLABLE) {
+      //6 缓存输出类型结果参数
       localOutputParameterCache.putObject(key, parameter);
     }
     return list;
