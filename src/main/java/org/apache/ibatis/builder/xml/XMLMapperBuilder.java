@@ -454,9 +454,9 @@ public class XMLMapperBuilder extends BaseBuilder {
           // Spring may not know the real resource name so we set a flag
           // to prevent loading again this resource from the mapper interface
           // look at MapperAnnotationBuilder#loadXmlResource
-          //1.3如果没有注册，将命名空间添加至configuration.loadedResource集合中
+          //1.3如果没有注册，将命名空间添加至configuration.loadedResource集合中保存加载过的资源（Set集合）
           configuration.addLoadedResource("namespace:" + namespace);
-          //1.4将mapper接口添加到mapper注册中心
+          //1.4将mapper接口添加到mapper注册中心（MapperRegistry：mapper接口的动态代理注册中心）
           configuration.addMapper(boundType);
         }
       }
