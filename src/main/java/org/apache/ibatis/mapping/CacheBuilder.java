@@ -92,6 +92,7 @@ public class CacheBuilder {
 
   public Cache build() {
     setDefaultImplementations();
+    //通过getConstructor方法构建Cache
     Cache cache = newBaseCacheInstance(implementation, id);
     setCacheProperties(cache);
     // issue #352, do not apply decorators to custom caches

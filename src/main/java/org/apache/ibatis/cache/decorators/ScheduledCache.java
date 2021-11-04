@@ -21,6 +21,7 @@ import org.apache.ibatis.cache.Cache;
 
 /**
  * @author Clinton Begin
+ * 添加超时清除机制，默认一小时
  */
 public class ScheduledCache implements Cache {
 

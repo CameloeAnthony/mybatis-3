@@ -30,7 +30,7 @@ import org.apache.ibatis.cache.CacheException;
  * This way, other threads will wait until this element is filled instead of hitting the database.
  *
  * <p>By its nature, this implementation can cause deadlock when used incorrectly.
- *
+ * 通过CountDownLatch实现的阻塞cache
  * @author Eduardo Macarron
  *
  */

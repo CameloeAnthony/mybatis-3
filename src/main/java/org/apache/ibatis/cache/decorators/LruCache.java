@@ -22,7 +22,7 @@ import org.apache.ibatis.cache.Cache;
 
 /**
  * Lru (least recently used) cache decorator.
- *
+ * 重新 LinkedHashMap#removeEldestEntry实现Lru机制
  * @author Clinton Begin
  */
 public class LruCache implements Cache {
