@@ -30,6 +30,7 @@ import org.apache.ibatis.session.Configuration;
 
 /**
  * @author Clinton Begin
+ * 一个MappedStatement维护一条<select|update|delete|insert>节点的封装
  */
 public final class MappedStatement {
 

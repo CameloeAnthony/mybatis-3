@@ -246,6 +246,9 @@ public class MapperBuilderAssistant extends BaseBuilder {
     return new Discriminator.Builder(configuration, resultMapping, namespaceDiscriminatorMap).build();
   }
 
+  /**
+   *通过builderAssistant实例化MappedStatement，并注册至configuration对象，参数列表非常复杂
+   */
   public MappedStatement addMappedStatement(
       String id,
       SqlSource sqlSource,
@@ -268,6 +271,7 @@ public class MapperBuilderAssistant extends BaseBuilder {
       LanguageDriver lang,
       String resultSets) {
 
+    //1.确保Cache-ref节点已经被解析过了
     if (unresolvedCacheRef) {
       throw new IncompleteElementException("Cache-ref not yet resolved");
     }
@@ -275,6 +279,7 @@ public class MapperBuilderAssistant extends BaseBuilder {
     id = applyCurrentNamespace(id, false);
     boolean isSelect = sqlCommandType == SqlCommandType.SELECT;
 
+    //2.典型的建造者模式，创建MappedStatement对象
     MappedStatement.Builder statementBuilder = new MappedStatement.Builder(configuration, id, sqlSource, sqlCommandType)
         .resource(resource)
         .fetchSize(fetchSize)
@@ -297,8 +302,9 @@ public class MapperBuilderAssistant extends BaseBuilder {
     if (statementParameterMap != null) {
       statementBuilder.parameterMap(statementParameterMap);
     }
-
+    //3.build方法创建MappedStatement对象
     MappedStatement statement = statementBuilder.build();
+    //4.添加MappedStatement对象到全局Configuration配置对象的对应Map中
     configuration.addMappedStatement(statement);
     return statement;
   }

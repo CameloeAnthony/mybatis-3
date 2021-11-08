@@ -24,6 +24,11 @@ import org.apache.ibatis.session.SqlSession;
 
 /**
  * @author Lasse Voss
+ * 用于生成Mapper接口动态代理的实例对象，也就是MapperProxy实例
+ * MapperProxyFactory内部预先就保存了mapperInterface和methodCache这两个变量，只需要传入sqlsession就可以创建代理实例，
+ * 因此我们知道MapperProxyFactory只能创建由mapperInterface指定的这个类型的接口代理，不能创建其他的接口类型的代理
+ *
+ * 每一个类型都对应一个MapperProxyFactory，而这些对应关系保存的地方就在MapperRegistry。
  */
 public class MapperProxyFactory<T> {
 
@@ -42,11 +47,13 @@ public class MapperProxyFactory<T> {
     return methodCache;
   }
 
+  //创建代理对象，参数传递的mapperProxy就是InvocationHandler的实现类(也就是实现代理逻辑的类)
   @SuppressWarnings("unchecked")
   protected T newInstance(MapperProxy<T> mapperProxy) {
     return (T) Proxy.newProxyInstance(mapperInterface.getClassLoader(), new Class[] { mapperInterface }, mapperProxy);
   }
 
+  //生产代理了mapper接口的实例对象（MapperProxy实例）
   public T newInstance(SqlSession sqlSession) {
     final MapperProxy<T> mapperProxy = new MapperProxy<T>(sqlSession, mapperInterface, methodCache);
     return newInstance(mapperProxy);

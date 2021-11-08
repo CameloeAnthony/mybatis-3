@@ -88,35 +88,58 @@ public class XMLMapperBuilder extends BaseBuilder {
   }
 
   public void parse() {
+    //1.首先判断是否已经加载过了，没有加载才继续加载(loadedResources是一个set集合，保存了已经加载的映射文件，如果一个配置在mappers里面写了2次，那么第二次就不加载了)
     if (!configuration.isResourceLoaded(resource)) {
+      //2.处理mapper子节点
+      //这里使用XPathParser来解析xml文件，XPathParser在XMLMapperBuilder构造方法执行的时候就已经初始化好了，已经将
+      //UserMapper.xml读取转换为一个document对象了
       configurationElement(parser.evalNode("/mapper"));
+      //3.将解析过的文件添加到已经解析过的set集合里面
       configuration.addLoadedResource(resource);
+      //4.注册mapper接口
       bindMapperForNamespace();
     }
-
+    //5.处理解析失败的节点
+    //把加载失败的节点重新加载一遍，因为这些节点可能在之前解析失败了，比如他们继承的节点还未加载导致，
+    //因此这里把失败的部分再加载一次，之前加载失败的节点会放在一个map里面
+    //6.处理解析失败的ResultMap节点
     parsePendingResultMaps();
+    //7.处理解析失败的CacheRef节点
     parsePendingCacheRefs();
+    //8.处理解析失败的Sql语句节点
     parsePendingStatements();
   }
 
   public XNode getSqlFragment(String refid) {
     return sqlFragments.get(refid);
   }
-
+  /**
+   * 解析mapper.xml映射文件的主流程
+   */
   private void configurationElement(XNode context) {
     try {
+
+      //1.获取namespace属性(对应java接口的全路径名称)；不能为空
       String namespace = context.getStringAttribute("namespace");
       if (namespace == null || namespace.equals("")) {
         throw new BuilderException("Mapper's namespace cannot be empty");
       }
+      //2.把namespace属性交给建造助手builderAssistant
       builderAssistant.setCurrentNamespace(namespace);
+      //3.解析cache-ref节点
       cacheRefElement(context.evalNode("cache-ref"));
+      //4.重点:解析cache节点，和缓存相关
       cacheElement(context.evalNode("cache"));
+      //5.解析parameterMap节点（已废弃）
       parameterMapElement(context.evalNodes("/mapper/parameterMap"));
+      //6.重点:解析resultMap节点
       resultMapElements(context.evalNodes("/mapper/resultMap"));
+      //7.重点：解析sql节点
       sqlElement(context.evalNodes("/mapper/sql"));
+      //8.重点：解析sql语句，解析select、insert、update、delete节点
       buildStatementFromContext(context.evalNodes("select|insert|update|delete"));
     } catch (Exception e) {
+      //异常处理
       throw new BuilderException("Error parsing Mapper XML. The XML location is '" + resource + "'. Cause: " + e, e);
     }
   }
@@ -130,22 +153,30 @@ public class XMLMapperBuilder extends BaseBuilder {
 
   private void buildStatementFromContext(List<XNode> list, String requiredDatabaseId) {
     for (XNode context : list) {
+      //1 XmlStatementBuilder来解析sql语句，并注册到configuration对象
       final XMLStatementBuilder statementParser = new XMLStatementBuilder(configuration, builderAssistant, context, requiredDatabaseId);
       try {
+        //2.XMLStatementBuilder和XMLMapperBuilder一样都是继承自BaseBuilder，BaseBuilder持有Configuration对象，因此
+        //直接解析，让后将配置信息set进去即可
         statementParser.parseStatementNode();
       } catch (IncompleteElementException e) {
+        //3.如果解析异常，就把对象添加到未完成的Map集合里
         configuration.addIncompleteStatement(statementParser);
       }
     }
   }
 
+  //处理之前加载失败的resultMap
   private void parsePendingResultMaps() {
+    //1之前加载失败的resultMap会保存在这个集合中，这里需要做的就是遍历这个集合并处理
     Collection<ResultMapResolver> incompleteResultMaps = configuration.getIncompleteResultMaps();
     synchronized (incompleteResultMaps) {
       Iterator<ResultMapResolver> iter = incompleteResultMaps.iterator();
       while (iter.hasNext()) {
         try {
+          //2.遍历并且调用resolve处理即可，如果异常直接忽略，因为最后还会重试的
           iter.next().resolve();
+          //3.处理完就从集合移除
           iter.remove();
         } catch (IncompleteElementException e) {
           // ResultMap is still missing a resource...
@@ -254,20 +285,27 @@ public class XMLMapperBuilder extends BaseBuilder {
 
   private ResultMap resultMapElement(XNode resultMapNode, List<ResultMapping> additionalResultMappings) throws Exception {
     ErrorContext.instance().activity("processing " + resultMapNode.getValueBasedIdentifier());
+    //1.获取id
     String id = resultMapNode.getStringAttribute("id",
         resultMapNode.getValueBasedIdentifier());
+    //2.获取type
     String type = resultMapNode.getStringAttribute("type",
         resultMapNode.getStringAttribute("ofType",
             resultMapNode.getStringAttribute("resultType",
                 resultMapNode.getStringAttribute("javaType"))));
+    //3.获取extends
     String extend = resultMapNode.getStringAttribute("extends");
+    //4.获取autoMapping配置
     Boolean autoMapping = resultMapNode.getBooleanAttribute("autoMapping");
+    //5.根据type解析到类型
     Class<?> typeClass = resolveClass(type);
+    //6.discriminator配置默认为null
     Discriminator discriminator = null;
     List<ResultMapping> resultMappings = new ArrayList<ResultMapping>();
     resultMappings.addAll(additionalResultMappings);
     List<XNode> resultChildren = resultMapNode.getChildren();
     for (XNode resultChild : resultChildren) {
+      //判断是否有构造方法节点
       if ("constructor".equals(resultChild.getName())) {
         processConstructorElement(resultChild, typeClass, resultMappings);
       } else if ("discriminator".equals(resultChild.getName())) {
@@ -395,21 +433,30 @@ public class XMLMapperBuilder extends BaseBuilder {
     return null;
   }
 
+  /**
+   * bindMapperForNamespace负责将mapper映射文件对应的java接口类(这个接口类的名称就是mapper文件里面的namespace)
+   * 注册到Configuration的MapperRegistry里面
+   */
   private void bindMapperForNamespace() {
+    //1.获取命名空间，在bindMapperForNamespace前面的configurationElement方法将namespace已经set到builderAssistant了，这里直接取出
     String namespace = builderAssistant.getCurrentNamespace();
     if (namespace != null) {
       Class<?> boundType = null;
       try {
+        //1.1 通过命名空间获取mapper接口的class对象
         boundType = Resources.classForName(namespace);
       } catch (ClassNotFoundException e) {
         //ignore, bound type is not required
       }
       if (boundType != null) {
+        //1.2 是否已经注册过该mapper接口？
         if (!configuration.hasMapper(boundType)) {
           // Spring may not know the real resource name so we set a flag
           // to prevent loading again this resource from the mapper interface
           // look at MapperAnnotationBuilder#loadXmlResource
+          //1.3如果没有注册，将命名空间添加至configuration.loadedResource集合中保存加载过的资源（Set集合）
           configuration.addLoadedResource("namespace:" + namespace);
+          //1.4将mapper接口添加到mapper注册中心（MapperRegistry：mapper接口的动态代理注册中心）
           configuration.addMapper(boundType);
         }
       }

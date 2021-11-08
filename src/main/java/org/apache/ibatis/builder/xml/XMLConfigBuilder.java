@@ -92,30 +92,41 @@ public class XMLConfigBuilder extends BaseBuilder {
   }
 
   public Configuration parse() {
+    //1.判断是否已经解析过，不重复解析
     if (parsed) {
       throw new BuilderException("Each XMLConfigBuilder can only be used once.");
     }
     parsed = true;
+    //2.读取主配置文件的configuration节点下面的配置信息，parseConfiguration方法完成解析的流程
     parseConfiguration(parser.evalNode("/configuration"));
     return configuration;
   }
 
+  /**
+   * 解析核心配置文件的关键方法，
+   * 读取节点的信息，并通过对应的方法去解析配置，解析到的配置全部会放在configuration里面
+   * */
   private void parseConfiguration(XNode root) {
     try {
       //issue #117 read properties first
+      //解析<properties>节点
       propertiesElement(root.evalNode("properties"));
+      //解析<settings>节点
       Properties settings = settingsAsProperties(root.evalNode("settings"));
       loadCustomVfs(settings);
+      //解析<typeAliases>节点
       typeAliasesElement(root.evalNode("typeAliases"));
       pluginElement(root.evalNode("plugins"));
       objectFactoryElement(root.evalNode("objectFactory"));
       objectWrapperFactoryElement(root.evalNode("objectWrapperFactory"));
       reflectorFactoryElement(root.evalNode("reflectorFactory"));
+      //将settings填充到configuration
       settingsElement(settings);
       // read it after objectFactory and objectWrapperFactory issue #631
       environmentsElement(root.evalNode("environments"));
       databaseIdProviderElement(root.evalNode("databaseIdProvider"));
       typeHandlerElement(root.evalNode("typeHandlers"));
+      //解析<mappers>节点，里面会使用XMLMapperBuilder
       mapperElement(root.evalNode("mappers"));
     } catch (Exception e) {
       throw new BuilderException("Error parsing SQL Mapper Configuration. Cause: " + e, e);
@@ -153,21 +164,32 @@ public class XMLConfigBuilder extends BaseBuilder {
 
   private void typeAliasesElement(XNode parent) {
     if (parent != null) {
+      //1.非空才会处理，依次遍历所有节点
       for (XNode child : parent.getChildren()) {
+        //2.处理package类型配置
         if ("package".equals(child.getName())) {
+          //2.1获取包名
           String typeAliasPackage = child.getStringAttribute("name");
+          //2.2注册包名，将包名放到typeAliasRegistry里面，里面拿到包名之后还会进一步处理
+          //最后会放到TypeAliasRegistry.TYPE_ALIASES这个Map里面去
           configuration.getTypeAliasRegistry().registerAliases(typeAliasPackage);
         } else {
+          //3.处理typeAlias类型配置
+          //3.1获取别名
           String alias = child.getStringAttribute("alias");
+          //3.2获取类名
           String type = child.getStringAttribute("type");
           try {
             Class<?> clazz = Resources.classForName(type);
             if (alias == null) {
+              //3.3下面的注册逻辑其实比前面注册包名要简单，注册包名要依次处理包下的类，也会调用registerAlias方法，
+              //这里直接处理类，别名没有配置也没关系，里面会生成一个getSimpleName或者根据Alias注解去取别名
               typeAliasRegistry.registerAlias(clazz);
             } else {
               typeAliasRegistry.registerAlias(alias, clazz);
             }
           } catch (ClassNotFoundException e) {
+            //4.其他类型直接报错
             throw new BuilderException("Error registering typeAlias for '" + alias + "'. Cause: " + e, e);
           }
         }
@@ -355,31 +377,44 @@ public class XMLConfigBuilder extends BaseBuilder {
       }
     }
   }
-
+/**
+ * 解析配置文件的mappers子节点，方法主要是实现一个大体框架，按照resource->url->class的优先级读取配置，具体的解
+ * 析细节是依赖于XMLMapperBuilder来实现的，XMLMapperBuilder通过parse方法屏蔽了细节，内部完成解析过程
+ * */
   private void mapperElement(XNode parent) throws Exception {
     if (parent != null) {
+      //1.节点非空，遍历子节点逐个处理，因为mapperElement(root.evalNode("mappers"))解析的mappers里面可能有多个标签
       for (XNode child : parent.getChildren()) {
+        //1.1 处理package类型的配置
         if ("package".equals(child.getName())) {
+          //1.2 按照包来添加，扫包之后默认会在包下找与java接口名称相同的mapper映射文件，name就是包名，
           String mapperPackage = child.getStringAttribute("name");
           configuration.addMappers(mapperPackage);
         } else {
+          //1.3 一个一个Mapper.xml文件的添加 ， resource、url和class三者是互斥的，resource优先级最高
           String resource = child.getStringAttribute("resource");
           String url = child.getStringAttribute("url");
           String mapperClass = child.getStringAttribute("class");
           if (resource != null && url == null && mapperClass == null) {
+            //1.4 按照resource属性实例化XMLMapperBuilder来解析xml配置文件
             ErrorContext.instance().resource(resource);
             InputStream inputStream = Resources.getResourceAsStream(resource);
+            //1.5解析配置，因为XMLMapperBuilder继承了BaseBuilder，BaseBuilder内部持有Configuration对象，因此
+            //XMLMapperBuilder解析之后直接把配置设置到Configuration对象
             XMLMapperBuilder mapperParser = new XMLMapperBuilder(inputStream, configuration, resource, configuration.getSqlFragments());
             mapperParser.parse();
           } else if (resource == null && url != null && mapperClass == null) {
+            //1.6 按照url属性实例化XMLMapperBuilder来解析xml配置文件
             ErrorContext.instance().resource(url);
             InputStream inputStream = Resources.getUrlAsStream(url);
             XMLMapperBuilder mapperParser = new XMLMapperBuilder(inputStream, configuration, url, configuration.getSqlFragments());
             mapperParser.parse();
           } else if (resource == null && url == null && mapperClass != null) {
+            //1.7 按照class属性实例化XMLMapperBuilder来解析xml配置文件
             Class<?> mapperInterface = Resources.classForName(mapperClass);
             configuration.addMapper(mapperInterface);
           } else {
+            //resource、url和class三者是互斥的，配置了多个或者不配置都抛出异常
             throw new BuilderException("A mapper element may only specify a url, resource or class, but not more than one.");
           }
         }

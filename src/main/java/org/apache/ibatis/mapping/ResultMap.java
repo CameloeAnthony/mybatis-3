@@ -50,6 +50,7 @@ public class ResultMap {
   private Discriminator discriminator;
   private boolean hasNestedResultMaps;
   private boolean hasNestedQueries;
+  //是否开启自定映射
   private Boolean autoMapping;
 
   private ResultMap() {

@@ -93,41 +93,55 @@ import org.apache.ibatis.type.TypeHandlerRegistry;
 
 /**
  * @author Clinton Begin
+ * Mybatis的核心配置文件
+ * 1.包含Mybatis全部的配置信息
+ * 2.全局单例的
+ * 3.生命周期贯穿整个Mybatis的生命周期，应用级生命周期
  */
 public class Configuration {
-
+  //环境信息
   protected Environment environment;
-
+  //是否启用行内嵌套语句
   protected boolean safeRowBoundsEnabled;
   protected boolean safeResultHandlerEnabled = true;
+  //是否启用下划线转驼峰命名的属性
   protected boolean mapUnderscoreToCamelCase;
+  //延迟加载
   protected boolean aggressiveLazyLoading;
+  //是否允许单条sql 返回多个数据集  (取决于驱动的兼容性) default:true
   protected boolean multipleResultSetsEnabled = true;
+  //允许JDBC 生成主键。需要驱动器支持。如果设为了true，这个设置将强制使用被生成的主键，有一些驱动器不兼容不过仍然可以执行。  default:false
   protected boolean useGeneratedKeys;
   protected boolean useColumnLabel = true;
+  //是否开启2级缓存
   protected boolean cacheEnabled = true;
   protected boolean callSettersOnNulls;
   protected boolean useActualParamName = true;
   protected boolean returnInstanceForEmptyRow;
-
+  //日志打印所有的前缀
   protected String logPrefix;
   protected Class <? extends Log> logImpl;
   protected Class <? extends VFS> vfsImpl;
   protected LocalCacheScope localCacheScope = LocalCacheScope.SESSION;
   protected JdbcType jdbcTypeForNull = JdbcType.OTHER;
+  //设置触发延迟加载的方法
   protected Set<String> lazyLoadTriggerMethods = new HashSet<String>(Arrays.asList(new String[] { "equals", "clone", "hashCode", "toString" }));
   protected Integer defaultStatementTimeout;
   protected Integer defaultFetchSize;
+  //执行类型，有simple、resue及batch
   protected ExecutorType defaultExecutorType = ExecutorType.SIMPLE;
+  //指定 MyBatis 应如何自动映射列到字段或属性
   protected AutoMappingBehavior autoMappingBehavior = AutoMappingBehavior.PARTIAL;
   protected AutoMappingUnknownColumnBehavior autoMappingUnknownColumnBehavior = AutoMappingUnknownColumnBehavior.NONE;
 
   protected Properties variables = new Properties();
   protected ReflectorFactory reflectorFactory = new DefaultReflectorFactory();
+  //MyBatis每次创建结果对象的新实例时，它都会使用对象工厂（ObjectFactory）去构建POJO
   protected ObjectFactory objectFactory = new DefaultObjectFactory();
   protected ObjectWrapperFactory objectWrapperFactory = new DefaultObjectWrapperFactory();
-
+  //延迟加载的全局开关
   protected boolean lazyLoadingEnabled = false;
+  //指定 Mybatis 创建具有延迟加载能力的对象所用到的代理工具
   protected ProxyFactory proxyFactory = new JavassistProxyFactory(); // #224 Using internal Javassist instead of OGNL
 
   protected String databaseId;
@@ -137,21 +151,30 @@ public class Configuration {
    *
    * @see <a href='https://code.google.com/p/mybatis/issues/detail?id=300'>Issue 300 (google code)</a>
    */
+  //插件集合
   protected Class<?> configurationFactory;
 
+  //mapper接口的动态代理注册中心
   protected final MapperRegistry mapperRegistry = new MapperRegistry(this);
   protected final InterceptorChain interceptorChain = new InterceptorChain();
+  //TypeHandler注册中心
   protected final TypeHandlerRegistry typeHandlerRegistry = new TypeHandlerRegistry();
+  //TypeAlias别名注册中心
   protected final TypeAliasRegistry typeAliasRegistry = new TypeAliasRegistry();
   protected final LanguageDriverRegistry languageRegistry = new LanguageDriverRegistry();
-
+  //mapper文件中增删改查操作的注册中心
   protected final Map<String, MappedStatement> mappedStatements = new StrictMap<MappedStatement>("Mapped Statements collection");
+  //mapper文件中配置cache节点的 二级缓存
   protected final Map<String, Cache> caches = new StrictMap<Cache>("Caches collection");
+  //mapper文件中配置的所有resultMap对象  key为命名空间+ID
   protected final Map<String, ResultMap> resultMaps = new StrictMap<ResultMap>("Result Maps collection");
   protected final Map<String, ParameterMap> parameterMaps = new StrictMap<ParameterMap>("Parameter Maps collection");
+  //mapper文件中配置KeyGenerator的insert和update节点，key为命名空间+ID
   protected final Map<String, KeyGenerator> keyGenerators = new StrictMap<KeyGenerator>("Key Generators collection");
 
+  //加载到的所有*mapper.xml文件
   protected final Set<String> loadedResources = new HashSet<String>();
+  //mapper文件中配置的sql元素，key为命名空间+ID
   protected final Map<String, XNode> sqlFragments = new StrictMap<XNode>("XML fragments parsed from previous mappers");
 
   protected final Collection<XMLStatementBuilder> incompleteStatements = new LinkedList<XMLStatementBuilder>();
@@ -171,6 +194,7 @@ public class Configuration {
     this.environment = environment;
   }
 
+  //注册默认的别名
   public Configuration() {
     typeAliasRegistry.registerAlias("JDBC", JdbcTransactionFactory.class);
     typeAliasRegistry.registerAlias("MANAGED", ManagedTransactionFactory.class);
@@ -563,21 +587,31 @@ public class Configuration {
   public Executor newExecutor(Transaction transaction) {
     return newExecutor(transaction, defaultExecutorType);
   }
-
+  /**
+   * 配置对象创建Executor组件，BatchExecutor/ReuseExecutor/SimpleExecutor三种
+   * 该方法在SqlSessionFactory的实现类DefaultSqlSessionFactory中会调用，得到的Executor组件会传到SqlSession中，
+   * 因为SqlSession对数据库的访问需要使用Executor来实现
+   * */
   public Executor newExecutor(Transaction transaction, ExecutorType executorType) {
+    //1.如果executorType是null，那就使用defaultExecutorType = ExecutorType.SIMPLE
     executorType = executorType == null ? defaultExecutorType : executorType;
     executorType = executorType == null ? ExecutorType.SIMPLE : executorType;
     Executor executor;
+    //2.BATCH
     if (ExecutorType.BATCH == executorType) {
       executor = new BatchExecutor(this, transaction);
+      //3.REUSE
     } else if (ExecutorType.REUSE == executorType) {
       executor = new ReuseExecutor(this, transaction);
+      //4.SIMPLE
     } else {
       executor = new SimpleExecutor(this, transaction);
     }
+    //5.如果开启了二级缓存，那么就装饰一下
     if (cacheEnabled) {
       executor = new CachingExecutor(executor);
     }
+    //6.处理插件
     executor = (Executor) interceptorChain.pluginAll(executor);
     return executor;
   }

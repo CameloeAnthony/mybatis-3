@@ -39,10 +39,12 @@ import java.util.*;
  * @author Clinton Begin
  * @author Eduardo Macarron
  * @author Lasse Voss
+ * MapperMethod封装了SqlCommand和MethodSignature，它是Mapper接口与映射文件中的SQL语句之间的桥梁
  */
 public class MapperMethod {
-
+//  SqlCommand从配置对象中获取了方法名，方法的命名空间，以及sql语句类型
   private final SqlCommand command;
+//  MethodSignature封装了Mapper映射文件中的接口方法的信息，包括入参和返回值等
   private final MethodSignature method;
 
   public MapperMethod(Class<?> mapperInterface, Method method, Configuration config) {
@@ -209,8 +211,9 @@ public class MapperMethod {
   }
 
   public static class SqlCommand {
-
+    //sql的名称，命名空间+方法名称
     private final String name;
+    //sql语句的类型
     private final SqlCommandType type;
 
     public SqlCommand(Configuration configuration, Class<?> mapperInterface, Method method) {
@@ -266,14 +269,20 @@ public class MapperMethod {
 
   public static class MethodSignature {
 
+    //返回参数是否为集合或者数组
     private final boolean returnsMany;
+    //返回参数是否为map
     private final boolean returnsMap;
+    //返回值是否为空
     private final boolean returnsVoid;
+    //返回值是否为游标类型
     private final boolean returnsCursor;
+    //返回值类型
     private final Class<?> returnType;
     private final String mapKey;
     private final Integer resultHandlerIndex;
     private final Integer rowBoundsIndex;
+    //方法参数解析器
     private final ParamNameResolver paramNameResolver;
 
     public MethodSignature(Configuration configuration, Class<?> mapperInterface, Method method) {

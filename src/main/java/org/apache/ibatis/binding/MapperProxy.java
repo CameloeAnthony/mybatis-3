@@ -30,12 +30,16 @@ import org.apache.ibatis.session.SqlSession;
 /**
  * @author Clinton Begin
  * @author Eduardo Macarron
+ * 动态代理类，实现了InvocationHandler接口，是Mapper接口的代理，对接口功能进行了增强
  */
 public class MapperProxy<T> implements InvocationHandler, Serializable {
 
   private static final long serialVersionUID = -6424540398559729838L;
+  //1.关联的SqlSession对象
   private final SqlSession sqlSession;
+  //2.Mapper接口对应的class对象
   private final Class<T> mapperInterface;
+  //3.key是Mapper接口中对应的Method对象，value是MapperMethod，MapperMethod不存储任何信息，因此可以在多个代理对象之间共享
   private final Map<Method, MapperMethod> methodCache;
 
   public MapperProxy(SqlSession sqlSession, Class<T> mapperInterface, Map<Method, MapperMethod> methodCache) {
@@ -44,9 +48,17 @@ public class MapperProxy<T> implements InvocationHandler, Serializable {
     this.methodCache = methodCache;
   }
 
+  /**
+   * ItemMapper mapper = sqlSession.getMapper(ItemMapper.class);
+   *  int rowAffected =  mapper.deleteItemById(1);
+   * 从代理对象的invoke方法我们可以看到，当我们显示调用类似于上面的mapper.xx方法的时候，底层是调用
+   * mapperMethod.execute(sqlSession, args);mapperMethod里面封装了接口方法和sql语句的信息，实际上
+   * 会去执行关联的sql语句
+   * */
   @Override
   public Object invoke(Object proxy, Method method, Object[] args) throws Throwable {
     try {
+      //1.如果是Object类的方法，那么就直接调用即可
       if (Object.class.equals(method.getDeclaringClass())) {
         return method.invoke(this, args);
       } else if (isDefaultMethod(method)) {
@@ -55,11 +67,14 @@ public class MapperProxy<T> implements InvocationHandler, Serializable {
     } catch (Throwable t) {
       throw ExceptionUtil.unwrapThrowable(t);
     }
+    //2.获取缓存的MapperMethod映射方法，缓存中没有则会创建一个并加到缓存
     final MapperMethod mapperMethod = cachedMapperMethod(method);
+    //3.执行sql(MapperMethod内部包含接口方法和参数，sql等信息，可以直接执行sql)
     return mapperMethod.execute(sqlSession, args);
   }
 
   private MapperMethod cachedMapperMethod(Method method) {
+    //1.如果缓存有则直接返回，如果没有就根据接口信息和配置文件信息生成MapperMethod
     MapperMethod mapperMethod = methodCache.get(method);
     if (mapperMethod == null) {
       mapperMethod = new MapperMethod(mapperInterface, method, sqlSession.getConfiguration());
