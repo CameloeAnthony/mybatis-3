@@ -46,8 +46,8 @@ public interface TransactionFactory {
   /**
    * Creates a {@link Transaction} out of a datasource.
    * @param dataSource DataSource to take the connection from
-   * @param level Desired isolation level
-   * @param autoCommit Desired autocommit
+   * @param level Desired isolation level 事务隔离级别
+   * @param autoCommit Desired autocommit 自动提交
    * @return Transaction
    * @since 3.1.0
    */

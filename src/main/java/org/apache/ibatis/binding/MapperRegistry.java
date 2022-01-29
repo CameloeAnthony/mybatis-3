@@ -30,7 +30,8 @@ import java.util.Set;
  * @author Clinton Begin
  * @author Eduardo Macarron
  * @author Lasse Voss
- * Mapper接口和对应的代理对象工厂注册中心，内部通过Map来保存，
+ * Mapper接口和对应的代理对象工厂注册中心，内部通过Map来保存对应的class和MapperProxyFactory的对应关系
+ *
  */
 public class MapperRegistry {
 

@@ -29,6 +29,8 @@ import org.apache.ibatis.session.SqlSession;
  * 因此我们知道MapperProxyFactory只能创建由mapperInterface指定的这个类型的接口代理，不能创建其他的接口类型的代理
  *
  * 每一个类型都对应一个MapperProxyFactory，而这些对应关系保存的地方就在MapperRegistry。
+ *
+ * 在mybatis-spring中，MapperFactoryBean完成了构建动态代理并放入spring的工作
  */
 public class MapperProxyFactory<T> {
 
@@ -50,6 +52,7 @@ public class MapperProxyFactory<T> {
   //创建代理对象，参数传递的mapperProxy就是InvocationHandler的实现类(也就是实现代理逻辑的类)
   @SuppressWarnings("unchecked")
   protected T newInstance(MapperProxy<T> mapperProxy) {
+    //Returns an instance of a proxy class for the specified interfaces that dispatches method invocations to the specified invocation handler.
     return (T) Proxy.newProxyInstance(mapperInterface.getClassLoader(), new Class[] { mapperInterface }, mapperProxy);
   }
 
