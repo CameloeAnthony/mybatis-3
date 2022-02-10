@@ -49,14 +49,23 @@ public class MapperProxyFactory<T> {
     return methodCache;
   }
 
-  //创建代理对象，参数传递的mapperProxy就是InvocationHandler的实现类(也就是实现代理逻辑的类)
+
   @SuppressWarnings("unchecked")
+  /**
+   * 创建代理对象，参数传递的mapperProxy就是InvocationHandler的实现类(也就是实现代理逻辑的类)
+   */
   protected T newInstance(MapperProxy<T> mapperProxy) {
     //Returns an instance of a proxy class for the specified interfaces that dispatches method invocations to the specified invocation handler.
     return (T) Proxy.newProxyInstance(mapperInterface.getClassLoader(), new Class[] { mapperInterface }, mapperProxy);
   }
 
-  //生产代理了mapper接口的实例对象（MapperProxy实例）
+
+  /**
+   * 生成代理了mapper接口的实例对象（MapperProxy实例），比如查询学生信息的StudentMapper，是interface的，这里会对应生成一个MapperProxy
+   * MapperProxy 继承 InvocationHandler，实现 invoke 方法,所以我们对所有sql方法的调用都调用到了invoke方法那里
+   * @param sqlSession
+   * @return
+   */
   public T newInstance(SqlSession sqlSession) {
     final MapperProxy<T> mapperProxy = new MapperProxy<T>(sqlSession, mapperInterface, methodCache);
     return newInstance(mapperProxy);
