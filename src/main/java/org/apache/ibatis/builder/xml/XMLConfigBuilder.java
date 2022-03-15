@@ -50,6 +50,7 @@ import org.apache.ibatis.type.TypeHandler;
 /**
  * @author Clinton Begin
  * @author Kazuki Shimizu
+ * 完成对xml配置的解析
  */
 public class XMLConfigBuilder extends BaseBuilder {
 
@@ -197,6 +198,7 @@ public class XMLConfigBuilder extends BaseBuilder {
     }
   }
 
+  //插件解析
   private void pluginElement(XNode parent) throws Exception {
     if (parent != null) {
       for (XNode child : parent.getChildren()) {
@@ -389,6 +391,7 @@ public class XMLConfigBuilder extends BaseBuilder {
         if ("package".equals(child.getName())) {
           //1.2 按照包来添加，扫包之后默认会在包下找与java接口名称相同的mapper映射文件，name就是包名，
           String mapperPackage = child.getStringAttribute("name");
+          //将对应的mapper保存到缓存
           configuration.addMappers(mapperPackage);
         } else {
           //1.3 一个一个Mapper.xml文件的添加 ， resource、url和class三者是互斥的，resource优先级最高

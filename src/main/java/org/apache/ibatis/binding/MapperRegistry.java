@@ -68,7 +68,7 @@ public class MapperRegistry {
 
   //4.添加Mapper，实际上就是把这个Mapper类型和它对应的代理工厂保存到knownMappers这个Map里面去
   public <T> void addMapper(Class<T> type) {
-    //1.Class代表接口才处理，否则不处理
+    //1.Class代表接口才处理，否则不处理,所以我们定义的mapper都是接口
     if (type.isInterface()) {
       //2.重复添加抛出异常
       if (hasMapper(type)) {
@@ -76,7 +76,8 @@ public class MapperRegistry {
       }
       boolean loadCompleted = false;
       try {
-        //3.添加到Map集合保存
+        //3.添加到Map集合保存(保存了Mapper接口类型和该类型对应的MapperProxyFactory之间的关联关系)
+        //MapperProxyFactory用于生成Mapper接口动态代理的实例对象，也就是MapperProxy实例
         knownMappers.put(type, new MapperProxyFactory<T>(type));
         // It's important that the type is added before the parser is run
         // otherwise the binding may automatically be attempted by the

@@ -346,10 +346,14 @@ public class DefaultResultSetHandler implements ResultSetHandler {
     }
   }
 
+  //处理分页（Mybatis的分页是对结果集进行的分页。JDBC驱动并不是把所有结果加载至内存中，而是只加载小部分数据至内存中，如果还需要从数据库中取更多记录，它会再次去获取部分数据，这就是fetch size的用处。）
   private void handleRowValuesForSimpleResultMap(ResultSetWrapper rsw, ResultMap resultMap, ResultHandler<?> resultHandler, RowBounds rowBounds, ResultMapping parentMapping)
       throws SQLException {
+    //逻辑分页思路：先取出所有数据，然后游标移动到offset位置，循环取limit条数据，然后把剩下的数据舍弃。
     DefaultResultContext<Object> resultContext = new DefaultResultContext<Object>();
+    // 跳到offset位置，准备读取
     skipRows(rsw.getResultSet(), rowBounds);
+    // 读取limit条数据
     while (shouldProcessMoreRows(resultContext, rowBounds) && rsw.getResultSet().next()) {
       ResultMap discriminatedResultMap = resolveDiscriminatedResultMap(rsw.getResultSet(), resultMap, null);
       Object rowValue = getRowValue(rsw, discriminatedResultMap);
@@ -378,10 +382,12 @@ public class DefaultResultSetHandler implements ResultSetHandler {
   private void skipRows(ResultSet rs, RowBounds rowBounds) throws SQLException {
     if (rs.getType() != ResultSet.TYPE_FORWARD_ONLY) {
       if (rowBounds.getOffset() != RowBounds.NO_ROW_OFFSET) {
+        // 直接定位
         rs.absolute(rowBounds.getOffset());
       }
     } else {
       for (int i = 0; i < rowBounds.getOffset(); i++) {
+        // 只能逐条滚动到指定位置
         rs.next();
       }
     }
